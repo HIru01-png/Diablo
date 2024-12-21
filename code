@@ -1,0 +1,81 @@
+extends CharacterBody3D
+
+# Movement Variables
+var move_speed: float = 5.0
+var rotation_speed: float = 720.0
+
+# Combat Variables
+var punch_damage: float = 10.0
+var attack_cooldown: float = 0.5
+var attack_timer: float = 0.0
+
+# Health and Immortality Variables
+var max_health: float = 100.0
+var current_health: float = 100.0
+
+# Animation and Input References
+onready var animator = $AnimationPlayer  # Ensure AnimationPlayer exists
+
+func _ready():
+	# Initialize health at the start
+	current_health = max_health
+	print("Script is ready. Max health set to ", max_health)
+	print("Current health is ", current_health)
+
+func _process(delta):
+	handle_movement(delta)
+	handle_combat(delta)
+	handle_immortality()
+
+func handle_movement(delta):
+	# Gather input
+	var input = Vector3.ZERO
+	input.x = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
+	input.z = Input.get_action_strength("move_forward") - Input.get_action_strength("move_backward")
+
+	# Process movement
+	if input.length() > 0.1:
+		input = input.normalized()  # Normalize input
+		var target_angle = rad2deg(atan2(input.x, input.z))
+		rotation_degrees.y = lerp_angle(rotation_degrees.y, target_angle, rotation_speed * delta / 360.0)
+		move_and_slide(input * move_speed)  # Ensure proper collision setup
+
+		# Play walking animation
+		if animator:
+			animator.play("walk")
+	else:
+		# Play idle animation
+		if animator:
+			animator.play("idle")
+
+func handle_combat(delta):
+	attack_timer -= delta
+
+	if Input.is_action_just_pressed("attack") and attack_timer <= 0:
+		# Perform punch attack
+		if animator:
+			animator.play("punch")
+		attack_timer = attack_cooldown
+		perform_attack()
+
+func perform_attack():
+	# Detect enemies in range
+	var space_state = get_world_3d().direct_space_state
+	var result = space_state.intersect_ray(global_transform.origin, global_transform.origin + global_transform.basis.z * 2.0)
+
+	if result and result.collider.is_in_group("Enemy"):
+		print("Hit ", result.collider.name)
+		# Uncomment below when Enemy script is ready
+		# result.collider.take_damage(punch_damage)
+
+func handle_immortality():
+	# Regenerate health if below max
+	if current_health < max_health:
+		print("Diablo's immortality restores health!")
+		current_health = max_health
+
+func take_damage(damage):
+	# Simulate taking damage and regenerating instantly
+	print("Diablo took damage but regenerates instantly!")
+	current_health -= damage
+	handle_immortality()
